@@ -40,12 +40,6 @@ node bin/dshpp.mjs env set DEEPSEEK_API_KEY=sk-...   # 写入凭据
 - 凭据：`$DSH_HOME/.env`（DSH 的 `credentials-local` 即读此处）
 - DSH++ 自身状态：`~/.dsh-plus-plus/`（含 `backups/`）
 
-## 设计原则（简约高级 · 无 AI 味）
-
-- **抑制 AI 感**：不用紫色渐变、玻璃拟态、emoji、大圆角气泡；用系统字体 + 等宽数值、细描边、单一克制点缀色、密集信息网格，参考 Linear / Vercel / GitH ub-dark 的工程工具质感。
-- **默认安全**：secret 类 key 一律脱敏；`.env` 只存引用不落明文在 UI；控制台仅绑定 `127.0.0.1`；写、删都做确认。
-- **可回滚**：所有写操作前可快照，restore 前自动先存当前状态。
-
 ## M2 · Provider / 模型 / 凭据面板（已落地大部分）
 
 **已在控制台落地**：`dshpp providers ls|export|probe` + Web 面板 —— provider 注册表（`~/.dsh-plus-plus/providers.json`）、端点模型探测、env 凭据引用、默认模型、配置导出。尚未做：把 provider 路由真正写进 harness 的 settings/plugin 配置、以及成本/用量面板（等 harness 装上后才有真实数据）。
