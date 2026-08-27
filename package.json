@@ -1,0 +1,21 @@
+{
+  "name": "dsh-plus-plus",
+  "version": "0.1.0",
+  "description": "DSH++ — a Windows-first lifecycle & provider manager for DeepSeek Harness (dsh). Minimal, local-first, zero-runtime-deps.",
+  "type": "module",
+  "bin": {
+    "dshpp": "bin/dshpp.mjs",
+    "dsh-plus-plus": "bin/dshpp.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node bin/dshpp.mjs",
+    "web": "node bin/dshpp.mjs web",
+    "doctor": "node bin/dshpp.mjs doctor",
+    "status": "node bin/dshpp.mjs status"
+  },
+  "license": "MIT",
+  "private": false
+}

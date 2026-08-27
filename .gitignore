@@ -1,0 +1,10 @@
+node_modules/
+*.log
+_srv.txt
+_srve.txt
+_install*.log
+.env
+.DS_Store
+*.tmp
+.idea/
+.vscode/

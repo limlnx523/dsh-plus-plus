@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DSH++ · control plane</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand__mark" aria-hidden="true">DSH</span>
+      <span class="brand__plus">++</span>
+      <span class="brand__sub">control plane</span>
+    </div>
+    <div class="topbar__meta">
+      <code class="chip" id="chip-home" title="DSH home">…</code>
+      <button class="btn btn--ghost" id="btn-refresh" title="Reload">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15.5-6.4L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.4L3 16"/><path d="M3 21v-5h5"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="lead">
+      <p class="eyebrow">HARNESS LIFECYCLE · LOCAL</p>
+      <h1>DeepSeek Harness,<br>managed.</h1>
+      <p class="lead__sub">本地优先的 DSH 生命周期与 Provider 管理端。凭据保险柜、配置快照、健康诊断，全部在本机闭环。</p>
+    </section>
+
+    <section class="stats" id="stats" aria-label="概览"></section>
+
+    <div class="grid">
+      <section class="panel" id="panel-credentials">
+        <div class="panel__head">
+          <h2>凭据</h2>
+          <span class="panel__hint">DSH_HOME/.env · 密钥默认脱敏</span>
+        </div>
+        <form class="inline-form" id="cred-form">
+          <input id="cred-key" class="input" placeholder="KEY_NAME" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <input id="cred-val" class="input" type="password" placeholder="value" autocomplete="off" spellcheck="false">
+          <button class="btn btn--solid" type="submit">写入</button>
+        </form>
+        <div class="table" id="cred-table"><div class="table__empty">尚无凭据</div></div>
+      </section>
+
+      <section class="panel" id="panel-backups">
+        <div class="panel__head">
+          <h2>快照</h2>
+          <button class="btn btn--ghost btn--sm" id="btn-backup">建一个</button>
+        </div>
+        <div class="table" id="backup-table"><div class="table__empty">尚无快照</div></div>
+      </section>
+    </div>
+
+    <section class="panel" id="panel-providers">
+      <div class="panel__head">
+        <h2>Provider / 模型</h2>
+        <div class="head-actions">
+          <button class="btn btn--ghost btn--sm" id="btn-provider-export">导出配置</button>
+        </div>
+      </div>
+      <div class="form-grid">
+        <input id="p-id" class="input" placeholder="id 如 deepseek" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <input id="p-name" class="input" placeholder="名称" autocomplete="off" spellcheck="false">
+        <input id="p-url" class="input" placeholder="base_url 如 https://api.deepseek.com" autocomplete="off" spellcheck="false">
+        <input id="p-keyref" class="input" placeholder="env 变量引用 如 DEEPSEEK_API_KEY" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <button class="btn btn--solid" id="btn-provider-save">保存</button>
+        <button class="btn btn--ghost" id="btn-provider-probe" title="探测该端点列出模型">探测模型</button>
+      </div>
+      <div id="provider-probe" class="probe" aria-live="polite"></div>
+      <div class="table" id="provider-list"><div class="table__empty">暂无 provider</div></div>
+      <pre id="provider-export" class="export hidden"></pre>
+    </section>
+    <section class="panel" id="panel-usage">
+      <div class="panel__head">
+        <h2>用量 / 成本</h2>
+        <div class="head-actions">
+          <button class="btn btn--ghost btn--sm" id="btn-budget" title="设置/清除月预算">预算</button>
+          <button class="btn btn--ghost btn--sm" id="btn-autorefresh" title="每30秒自动刷新">自动</button>
+          <span class="panel__hint" id="usage-note">—</span>
+        </div>
+      </div>
+      <div id="budget-bar" class="budget hidden"></div>
+      <div class="usage-strip" id="usage-summary"></div>
+      <div class="table" id="usage-table"><div class="table__empty">暂无用量</div></div>
+    </section>
+    <section class="panel" id="panel-eval">
+      <div class="panel__head">
+        <h2>评估 · 模型 A/B</h2>
+        <button class="btn btn--ghost btn--sm" id="btn-eval">跑评估 flash+pro</button>
+      </div>
+      <div id="eval-result" class="table"><div class="table__empty">用合成任务实测各模型（成功/延迟/成本/正确性 + 与基线回归对比）</div></div>
+    </section>
+    <section class="panel" id="panel-sessions">
+      <div class="panel__head">
+        <h2>会话</h2>
+        <button class="btn btn--ghost btn--sm" id="btn-sessions-refresh">刷新</button>
+      </div>
+      <div class="table" id="sessions-list"><div class="table__empty">暂无会话</div></div>
+    </section>
+
+    <section class="panel" id="panel-plugins">
+      <div class="panel__head">
+        <h2>插件</h2>
+        <span class="panel__hint" id="plugins-note">—</span>
+      </div>
+      <div class="table" id="plugins-list"><div class="table__empty">暂无插件</div></div>
+    </section>
+    <section class="panel" id="panel-doctor">
+      <div class="panel__head">
+        <h2>诊断</h2>
+        <button class="btn btn--ghost btn--sm" id="btn-doctor">重跑</button>
+      </div>
+      <div class="checks" id="checks"><div class="table__empty">点击「重跑」诊断</div></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>dsh-plus-plus</span>
+    <span class="dot">·</span>
+    <span>本地运行，密钥不出机</span>
+  </footer>
+</div>
+<script src="/assets/app.js"></script>
+</body>
+</html>
