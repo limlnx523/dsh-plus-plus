@@ -6,7 +6,6 @@
 
 ![License](https://img.shields.io/github/license/limlnx523/dsh-plus-plus) ![Node](https://img.shields.io/badge/node-%3E%3D20-3c873a) ![DeepSeek Harness](https://img.shields.io/badge/DeepSeek_Harness-dsh-%230a0c10)
 
-**一句话**：给 DeepSeek Harness 加一层“安装/凭据/备份/诊断 + 用量成本 + 会话管理 + 插件安全审计 + 模型实测评估”的控制台，本地优先、零运行时依赖、无 AI 味。
 
 ## M1（当前）已落地
 
@@ -47,5 +46,3 @@ node bin/dshpp.mjs env set DEEPSEEK_API_KEY=sk-...   # 写入凭据
 - **Provider / 模型 / 凭据统一面板**：探测端点 → 列出模型（走 DSH 的 `listModels` / `discoverModels`）→ 采纳进配置；provider 路由（base_url / api / 模型映射）增删改；默认模型与 `reasoningEffort` 切换（对应 `dsh-agent-default-model` 的 `{provider, model}`）；用量 / 成本面板。
 - **版本兼容矩阵 + 升级守卫/回滚**：渲染 config-catalog 成表单；对 dev preview 的 breaking change 做兼容标记与回滚。
 - **Windows 优先生命周期**：绕过 `github.com` 被重置的安装路径（走 npm registry / 镜像），装/更/自愈/守护。
-
-没有同类可抄——目前把节奏放在「M1 控制台 + 凭据/快照/诊断」这条可跑通的主线上。
