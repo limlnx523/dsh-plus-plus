@@ -1,6 +1,6 @@
 # DSH++ · control plane
 
-在 DeepSeek Harness (dsh) 上做一层的**生命周期与 Provider 管理端**。本地优先、零运行时依赖，界面走简约高级的工程工具风（近黑底、细描边、单一点缀色、无 AI 味）。
+在 DeepSeek Harness (dsh) 上做一层的**生命周期与 Provider 管理端**。本地优先、零运行时依赖，界面走简约高级的工程工具风。
 
 > 定位：不是“又一个插件清单/桌面壳”，而是对标 codex-plus-plus 之于 Codex——**装/更/回滚 + Provider/凭据统一 + 诊断备份**。官方已有 `dsh-market` 插件市场，这里对接而非重造。
 
