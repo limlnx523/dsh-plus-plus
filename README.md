@@ -4,6 +4,10 @@
 
 > 定位：不是“又一个插件清单/桌面壳”，而是对标 codex-plus-plus 之于 Codex——**装/更/回滚 + Provider/凭据统一 + 诊断备份**。官方已有 `dsh-market` 插件市场，这里对接而非重造。
 
+![License](https://img.shields.io/github/license/limlnx523/dsh-plus-plus) ![Node](https://img.shields.io/badge/node-%3E%3D20-3c873a) ![DeepSeek Harness](https://img.shields.io/badge/DeepSeek_Harness-dsh-%230a0c10)
+
+**一句话**：给 DeepSeek Harness 加一层“安装/凭据/备份/诊断 + 用量成本 + 会话管理 + 插件安全审计 + 模型实测评估”的控制台，本地优先、零运行时依赖、无 AI 味。
+
 ## M1（当前）已落地
 
 - `dshpp status` —— 概览（DSH home / dsh CLI / .env / settings / 快照）
