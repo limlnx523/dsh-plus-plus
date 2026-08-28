@@ -4,7 +4,6 @@
 
 > 定位：不是“又一个插件清单/桌面壳”，而是对标 codex-plus-plus 之于 Codex——**装/更/回滚 + Provider/凭据统一 + 诊断备份**。官方已有 `dsh-market` 插件市场，这里对接而非重造。
 
-![License](https://img.shields.io/github/license/limlnx523/dsh-plus-plus) ![Node](https://img.shields.io/badge/node-%3E%3D20-3c873a) ![DeepSeek Harness](https://img.shields.io/badge/DeepSeek_Harness-dsh-%230a0c10)
 ![License](https://img.shields.io/github/license/limlnx523/dsh-plus-plus) ![Node](https://img.shields.io/badge/node-%3E%3D20-3c873a) ![DeepSeek Harness](https://img.shields.io/badge/DeepSeek_Harness-dsh-%230a0c10) ![CI](https://img.shields.io/github/actions/workflow/status/limlnx523/dsh-plus-plus/ci.yml?branch=main)
 
 
