@@ -6,7 +6,7 @@ import { DSHPP_HOME, ensureDir, resolveDSHHome } from './dshhome.mjs';
 import { listSessions } from './sessions.mjs';
 import { DEFAULT_PRICES } from './usage.mjs';
 
-const EVAL_FILE = path.join(DSHPP_HOME, 'eval.json');
+
 const EVAL_FILE = path.join(DSHPP_HOME, 'bench.json');
 const DEFAULT_PROVIDER = 'deepseek-official';
 
