@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Syntax check (all modules)
+        run: |
+          for f in bin/dshpp.mjs src/*.mjs; do
+            node --check "$f" || exit 1
+          done
+      - name: CLI smoke
+        run: node bin/dshpp.mjs --help >/dev/null && echo "cli-ok"
