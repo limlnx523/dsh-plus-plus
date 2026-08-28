@@ -1,0 +1,7 @@
+# dsh-plus-plus bundle patch: adds the /dshpp slash command to the profile.
+# Applied as an insert over the base layer (dsh-base). Later patch layers and the
+# user's profile cordis.patch.yml may override this row by id.
+
+- insert:
+    - id: dshpp
+      name: 'dsh-plus-plus'

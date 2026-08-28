@@ -27,6 +27,12 @@ npm i -g .
 
 The harness home is resolved from `$DSH_HOME` or `~/.dsh`.
 
+It can also be installed as a DeepSeek Harness plugin (adds a `/dshpp` slash command):
+
+```sh
+dsh plugin --profile web add github:limlnx523/dsh-plus-plus
+```
+
 ## CLI
 
 ```sh
