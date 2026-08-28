@@ -1,6 +1,7 @@
 # dsh-plus-plus
 
 A local-first companion for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`). It adds the operational layer that the harness does not ship: lifecycle management, provider and credential handling, usage and cost analytics, session management, plugin security auditing, and a model evaluation harness.
+A local-first companion for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`). It adds operational tooling that the harness does not ship: install detection, configuration snapshot and rollback, provider and credential handling, usage and cost analytics, session management, plugin security auditing, and a model evaluation harness.
 
 DeepSeek Harness is an agent framework where *everything is a plugin*. `dsh-plus-plus` works alongside it rather than replacing it — it reads the same `$DSH_HOME` state and surfaces it through a CLI and a local web console.
 
