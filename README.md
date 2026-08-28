@@ -1,11 +1,13 @@
 # dsh-plus-plus
+<p align="center"><img src="assets/logo.svg" width="96" alt="dsh-plus-plus"></p>
 
-A local-first companion for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`). It adds the operational layer that the harness does not ship: lifecycle management, provider and credential handling, usage and cost analytics, session management, plugin security auditing, and a model evaluation harness.
+
 A local-first companion for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`). It adds operational tooling that the harness does not ship: install detection, configuration snapshot and rollback, provider and credential handling, usage and cost analytics, session management, plugin security auditing, and a model evaluation harness.
 
 DeepSeek Harness is an agent framework where *everything is a plugin*. `dsh-plus-plus` works alongside it rather than replacing it — it reads the same `$DSH_HOME` state and surfaces it through a CLI and a local web console.
 
 ![License](https://img.shields.io/github/license/limlnx523/dsh-plus-plus) ![Node](https://img.shields.io/badge/node-%3E%3D20-3c873a) ![CI](https://img.shields.io/github/actions/workflow/status/limlnx523/dsh-plus-plus/ci.yml?branch=main)
+![License](https://img.shields.io/github/license/limlnx523/dsh-plus-plus) ![Node](https://img.shields.io/badge/node-%3E%3D20-3c873a) ![Stars](https://img.shields.io/github/stars/limlnx523/dsh-plus-plus?style=flat) ![CI](https://img.shields.io/github/actions/workflow/status/limlnx523/dsh-plus-plus/ci.yml?branch=main)
 
 ## Features
 

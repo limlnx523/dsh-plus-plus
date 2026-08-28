@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="dsh-plus-plus">
+  <rect width="128" height="128" rx="24" fill="#0a0c10"/>
+  <rect x="1" y="1" width="126" height="126" rx="23" fill="none" stroke="#24292f" stroke-width="2"/>
+  <text x="64" y="62" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="34" font-weight="700" fill="#e6e9ee" text-anchor="middle" letter-spacing="1">dsh</text>
+  <text x="64" y="94" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="17" font-weight="600" fill="#6ea8ff" text-anchor="middle" letter-spacing="4">++</text>
+</svg>

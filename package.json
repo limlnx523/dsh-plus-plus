@@ -25,5 +25,8 @@
     "status": "node bin/dshpp.mjs status"
   },
   "license": "MIT",
+  "repository": {"type": "git", "url": "git+https://github.com/limlnx523/dsh-plus-plus.git"},
+  "homepage": "https://github.com/limlnx523/dsh-plus-plus",
+  "keywords": ["deepseek", "harness", "dsh", "dsh-plugin", "deepseek-harness", "agent", "cli", "plugin", "usage", "security", "windows"],
   "private": false
 }
