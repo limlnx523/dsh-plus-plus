@@ -14,6 +14,7 @@ import { getBudget, setBudget } from '../src/config.mjs';
 import { listSessions, exportSession } from '../src/sessions.mjs';
 import { listPlugins } from '../src/plugins.mjs';
 import { evalRun, PROBE, EXPECTED } from '../src/eval.mjs';
+import { runBenchmark } from '../src/benchmark.mjs';
 import { DSHPP_HOME } from '../src/dshhome.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -33,6 +34,8 @@ Usage:
   dshpp backup rm <id>                 Delete a snapshot
   dshpp doctor                         Run environment/diagnostic checks
   dshpp providers ls|export|probe       List providers, export config, probe endpoint models
+  dshpp eval [flash,pro]                 Run deterministic model probe, diff vs baseline
+  dshpp bench [flash|pro] [tasks]       Multi-task benchmark (chat/fs/edit/glob/shell) + regression
   dshpp usage                           Aggregate token usage from session logs (per model)
   dshpp budget                          Show/set monthly budget (dshpp budget set <usd>)
   dshpp web [--port N] [--no-open]     Start the local web console
@@ -146,6 +149,28 @@ async function main() {
         for (const d of r.diff) {
           if (d.change === 'new') { console.log(`    ${d.model}  (新加入)`); continue; }
           console.log(`    ${d.model}  ${d.okChange}  latency ${d.latencyDeltaMs > 0 ? '+' : ''}${d.latencyDeltaMs}ms  cost ${(d.costDelta || 0).toFixed(4)}`);
+        }
+      }
+      return;
+    }
+    case 'bench': {
+      const variants = (args[1] || 'flash').split(',');
+      const models = variants.map((v) => (v.includes('pro') ? 'deepseek-v4-pro' : v.includes('vision') ? 'deepseek-v4-flash-vision-exp' : 'deepseek-v4-flash'));
+      const maxTasks = Number(args[2]) || 2;
+      const r = await runBenchmark(opts, models, maxTasks);
+      const tasks = r.models[0]?.results?.length || 0;
+      console.log(`\n[DSH++] benchmark  tasks=${tasks}  models=${models.join(',')}`);
+      for (const s of r.models) {
+        console.log(`\n  ${s.model}  ok=${s.agg.ok}/${s.agg.tasks}  fail=${s.agg.fail}  latency=${s.agg.totalLatencyMs}ms  in=${s.agg.inputTokens} out=${s.agg.outputTokens}  cost=${formatCost(s.agg.cost)}`);
+        for (const t of s.results) {
+          console.log(`    ${(t.ok ? 'PASS' : 'FAIL').padEnd(5)} ${t.id.padEnd(12)} ${t.latencyMs}ms  ${t.detail}`);
+        }
+      }
+      if (r.diff) {
+        console.log('\n  vs baseline:');
+        for (const d of r.diff) {
+          if (d.change === 'new') { console.log(`    ${d.model}  (new)`); continue; }
+          console.log(`    ${d.model}  ok ${d.okChange > 0 ? '+' : ''}${d.okChange}/${d.failChange}  latency ${(d.latencyDeltaMs || 0) > 0 ? '+' : ''}${d.latencyDeltaMs}ms  cost ${(d.costDelta || 0).toFixed(4)}${d.broke ? '  !! REGRESSION' : ''}`);
         }
       }
       return;

@@ -6,6 +6,8 @@ A local-first companion for [DeepSeek Harness](https://github.com/deepseek-ai/de
 
 DeepSeek Harness is an agent framework where *everything is a plugin*. `dsh-plus-plus` works alongside it rather than replacing it — it reads the same `$DSH_HOME` state and surfaces it through a CLI and a local web console.
 
+> The focus is **evaluation & regression**: benchmark the harness end to end, compare against a baseline, and detect what an upgrade or config change broke. Everything else — provider and credential handling, usage and cost, session management, plugin security — supports that.
+
 ![License](https://img.shields.io/github/license/limlnx523/dsh-plus-plus) ![Node](https://img.shields.io/badge/node-%3E%3D20-3c873a) ![CI](https://img.shields.io/github/actions/workflow/status/limlnx523/dsh-plus-plus/ci.yml?branch=main)
 ![License](https://img.shields.io/github/license/limlnx523/dsh-plus-plus) ![Node](https://img.shields.io/badge/node-%3E%3D20-3c873a) ![Stars](https://img.shields.io/github/stars/limlnx523/dsh-plus-plus?style=flat) ![CI](https://img.shields.io/github/actions/workflow/status/limlnx523/dsh-plus-plus/ci.yml?branch=main)
 
@@ -16,7 +18,7 @@ DeepSeek Harness is an agent framework where *everything is a plugin*. `dsh-plus
 - **Usage & cost** — read DSH session logs (concatenated zstd frames via built-in `node:zlib`) and report tokens and cost by model, day, and project; cache-hit rate; monthly budget with a progress bar.
 - **Sessions** — list, preview, and export DSH session logs.
 - **Plugin security** — inventory installed plugins and audit the capabilities (seams) each one touches: fs, shell, subprocess, network, credentials, sandbox, mcp, llm. Risk-graded.
-- **Evaluation** — run a deterministic probe through the harness per model; measure pass/fail, latency, tokens, cost, and answer correctness; compare against a stored baseline to catch regressions after upgrades or config changes.
+- **Evaluation & regression** (the focus) — run a deterministic multi-task benchmark through the harness (chat, filesystem read/write/edit, glob, shell), each with an assertable outcome, in isolated throwaway workspaces; report pass/fail, latency, tokens, and cost per model; compare against a stored baseline to catch regressions after upgrades or config changes.
 
 ## Requirements
 
@@ -48,6 +50,7 @@ dshpp usage                  # token/cost; by model/day/project; cache-hit rate
 dshpp sessions [export <id>]
 dshpp plugins                # inventory + seam audit
 dshpp eval [flash|pro|flash,pro]
+dshpp bench [flash|pro] [tasks]     # multi-task benchmark + regression
 dshpp budget set <usd>
 dshpp web                    # local console on 127.0.0.1:4848
 ```
