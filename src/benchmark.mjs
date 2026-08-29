@@ -1,27 +1,24 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { spawn } from 'node:child_process';
 import { DSHPP_HOME, ensureDir, resolveDSHHome } from './dshhome.mjs';
 import { listSessions } from './sessions.mjs';
+import { runDSH } from './dshadapter.mjs';
 import { DEFAULT_PRICES } from './usage.mjs';
-
 
 const EVAL_FILE = path.join(DSHPP_HOME, 'bench.json');
 const DEFAULT_PROVIDER = 'deepseek-official';
 
-/**
- * Deterministic benchmark tasks. Each runs `dsh --profile headless` in an
+/** Deterministic benchmark tasks. Each runs `dsh --profile headless` in an
  * isolated temp workspace and asserts an outcome. `setup(ws)` prepares files;
- * `check(out, ws)` returns `{ ok, detail }`.
- */
+ * `check(out, ws)` returns `{ ok, detail }`. */
 export const TASKS = [
   {
     id: 'math',
     desc: 'chat: solve 13+29, expect "42"',
     check(out) {
       const ok = out.includes('42');
-      return { ok, detail: ok ? 'answer present' : 'answer missing: ' + out.slice(0, 40) };
+      return { ok, detail: ok ? 'answer present' : 'answer missing' };
     },
   },
   {
@@ -48,7 +45,7 @@ export const TASKS = [
     setup(ws) { fs.writeFileSync(path.join(ws, 'a.md'), 'a', 'utf8'); fs.writeFileSync(path.join(ws, 'b.md'), 'b', 'utf8'); },
     check(out) {
       const ok = out.includes('2');
-      return { ok, detail: ok ? 'two files counted' : 'count wrong: ' + out.slice(0, 40) };
+      return { ok, detail: ok ? 'two files counted' : 'count wrong' };
     },
   },
   {
@@ -79,22 +76,7 @@ function promptFor(task) {
     edit: '编辑当前工作区的 file.txt，把 FOO 替换成 BAR。完成后只回复：done',
     'shell-echo': '用 shell 执行 echo BENCH_OK，只回复输出',
   };
-  return wsPromptMap[task.id] ||
-    (task.id === 'math' ? '只输出数字：13 加 29 等于几？' : '完成一个基准任务。');
-}
-
-function runHeadless(cwd, probe) {
-  return new Promise((resolve) => {
-    const t0 = Date.now();
-    let settled = false;
-    const child = spawn('dsh', ['--profile', 'headless', probe], { cwd, shell: true, env: process.env });
-    let out = '';
-    child.stdout.on('data', (d) => { out += d; });
-    child.stderr.on('data', (d) => { out += d; });
-    child.on('error', () => { if (!settled) { settled = true; resolve({ out, ms: Date.now() - t0, error: 'spawn failed' }); } });
-    child.on('close', () => { if (!settled) { settled = true; resolve({ out, ms: Date.now() - t0 }); } });
-    setTimeout(() => { if (!settled) { settled = true; try { child.kill(); } catch {} resolve({ out, ms: Date.now() - t0, timeout: true }); } }, 120000).unref();
-  });
+  return wsPromptMap[task.id] || (task.id === 'math' ? '只输出数字：13 加 29 等于几？' : '完成一个基准任务。');
 }
 
 function newestSession(items) {
@@ -102,14 +84,9 @@ function newestSession(items) {
   return items.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
 }
 
-function usageOf(newest, model) {
+function costOf(tokensIn, tokensOut, model) {
   const price = DEFAULT_PRICES[model] || DEFAULT_PRICES[DEFAULT_PROVIDER] || null;
-  const cost = price && newest ? (newest.inputTokens / 1e6 * (price.input || 0)) + (newest.outputTokens / 1e6 * (price.output || 0)) : 0;
-  return {
-    tokensIn: newest ? newest.inputTokens : 0,
-    tokensOut: newest ? newest.outputTokens : 0,
-    cost,
-  };
+  return price ? (tokensIn / 1e6 * (price.input || 0)) + (tokensOut / 1e6 * (price.output || 0)) : 0;
 }
 
 export async function runTask(opts, task, model) {
@@ -119,19 +96,18 @@ export async function runTask(opts, task, model) {
     if (task.setup) task.setup(ws);
     const beforeCount = (await listSessions(opts)).count;
     const probe = promptFor(task);
-    const { out, ms, timeout } = await runHeadless(ws, probe);
-    const after = await listSessions(opts);
-    let newest = after.count > beforeCount ? newestSession(after.items) : null;
+    const { out, ms, timeout } = await runDSH(probe, { cwd: ws });
     if (timeout) return { id: task.id, desc: task.desc, ok: false, timeout: true, latencyMs: ms, tokensIn: 0, tokensOut: 0, cost: 0, detail: 'timeout' };
+    const after = await listSessions(opts);
+    const newest = after.count > beforeCount ? newestSession(after.items) : null;
     const c = task.check(out, ws);
-    const u = usageOf(newest, model);
-    return { id: task.id, desc: task.desc, ok: c.ok, latencyMs: ms, tokensIn: u.tokensIn, tokensOut: u.tokensOut, cost: u.cost, detail: c.detail, answer: out.trim().slice(0, 60) };
+    const tokensIn = newest ? newest.inputTokens : 0;
+    const tokensOut = newest ? newest.outputTokens : 0;
+    return { id: task.id, desc: task.desc, ok: c.ok, latencyMs: ms, tokensIn, tokensOut, cost: costOf(tokensIn, tokensOut, model), detail: c.detail, answer: out.trim().slice(0, 60) };
   } finally {
-    try { fs.rmSync(ws, { recursive: true, force: true }); } catch {}
+    try { fs.rmSync(ws, { recursive: true, force: true }); } catch { /* ignore */ }
   }
 }
-
-function before0Items(after) { return after.items[0] || {}; }
 
 function loadBaseline() {
   if (!fs.existsSync(EVAL_FILE)) return null;

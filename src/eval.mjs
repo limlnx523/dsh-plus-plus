@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
 import { DSHPP_HOME, ensureDir, resolveDSHHome } from './dshhome.mjs';
 import { listSessions } from './sessions.mjs';
+import { runDSH } from './dshadapter.mjs';
 import { DEFAULT_PRICES } from './usage.mjs';
 
 export const PROBE = '只输出数字：12 加 30 等于几';
@@ -34,20 +34,6 @@ function setAgentDefaultModel(text, provider, model) {
   return txt;
 }
 
-function runHeadless(probe) {
-  return new Promise((resolve) => {
-    const t0 = Date.now();
-    let settled = false;
-    const child = spawn('dsh', ['--profile', 'headless', probe], { shell: true, env: process.env });
-    let out = '';
-    child.stdout.on('data', (d) => { out += d; });
-    child.stderr.on('data', (d) => { out += d; });
-    child.on('error', () => { if (!settled) { settled = true; resolve({ out, ms: Date.now() - t0, error: 'spawn failed' }); } });
-    child.on('close', () => { if (!settled) { settled = true; resolve({ out, ms: Date.now() - t0 }); } });
-    setTimeout(() => { if (!settled) { settled = true; try { child.kill(); } catch {} resolve({ out, ms: Date.now() - t0, timeout: true }); } }, 120000).unref();
-  });
-}
-
 function newestSession(items) {
   if (!items || !items.length) return null;
   return items.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
@@ -62,13 +48,12 @@ export async function evalOne(opts, { provider = DEFAULT_PROVIDER, model, probe 
   const beforeCount = before.count;
 
   fs.writeFileSync(sf, setAgentDefaultModel(backup, provider, model), 'utf8');
-  const { out, ms, timeout } = await runHeadless(probe);
+  const { out, ms, timeout } = await runDSH(probe);
   if (existed) fs.writeFileSync(sf, backup, 'utf8');
-  else { try { fs.unlinkSync(sf); } catch {} }
+  else { try { fs.unlinkSync(sf); } catch { /* ignore */ } }
 
   const after = await listSessions(opts);
   let newest = newestSession(after.items);
-  // only count a session created during this run
   if (newest && beforeCount >= after.count && newest.id === (before.items[0]?.id)) newest = null;
   const ok = out.includes(expected);
   const price = DEFAULT_PRICES[model] || DEFAULT_PRICES[DEFAULT_PROVIDER] || null;
@@ -106,7 +91,6 @@ export async function evalRun(opts, models = []) {
   const previous = loadBaseline();
   const baseline = { ranAt: Date.now(), models: results };
   saveBaseline(baseline);
-  // regression diff vs previous
   let diff = null;
   if (previous && Array.isArray(previous.models)) {
     diff = results.map((r) => {

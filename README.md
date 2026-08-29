@@ -1,28 +1,24 @@
 # dsh-plus-plus
+
 <p align="center"><img src="assets/logo.svg" width="96" alt="dsh-plus-plus"></p>
 
+**dsh-plus-plus** is a local-first control plane and operational tooling for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`). It runs on your machine, reads the same `$DSH_HOME` state the harness does, and surfaces it through a CLI and a loopback-only web console.
 
-A local-first companion for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`). It adds operational tooling that the harness does not ship: install detection, configuration snapshot and rollback, provider and credential handling, usage and cost analytics, session management, plugin security auditing, and a model evaluation harness.
+It does not replace the harness. It covers the operational gaps the harness does not ship:
 
-DeepSeek Harness is an agent framework where *everything is a plugin*. `dsh-plus-plus` works alongside it rather than replacing it — it reads the same `$DSH_HOME` state and surfaces it through a CLI and a local web console.
+- **Lifecycle** — detect the install, snapshot and roll back configuration, run diagnostics.
+- **Plugin security audit** — inventory installed plugins, classify the capabilities (seams) each one touches, and grade risk.
+- **Evaluation & regression** — run a deterministic multi-task benchmark through the harness, compare it to a stored baseline, and flag what an upgrade or config change broke.
 
-> The focus is **evaluation & regression**: benchmark the harness end to end, compare against a baseline, and detect what an upgrade or config change broke. Everything else — provider and credential handling, usage and cost, session management, plugin security — supports that.
-
-![License](https://img.shields.io/github/license/limlnx523/dsh-plus-plus) ![Node](https://img.shields.io/badge/node-%3E%3D20-3c873a) ![CI](https://img.shields.io/github/actions/workflow/status/limlnx523/dsh-plus-plus/ci.yml?branch=main)
-![License](https://img.shields.io/github/license/limlnx523/dsh-plus-plus) ![Node](https://img.shields.io/badge/node-%3E%3D20-3c873a) ![Stars](https://img.shields.io/github/stars/limlnx523/dsh-plus-plus?style=flat) ![CI](https://img.shields.io/github/actions/workflow/status/limlnx523/dsh-plus-plus/ci.yml?branch=main)
-
-## Features
-
-- **Lifecycle** — detect the harness install, snapshot and roll back configuration, and run `doctor` diagnostics.
-- **Providers & credentials** — manage provider routes; store credentials in `$DSH_HOME/.env`; probe an endpoint to discover models; set the default model.
-- **Usage & cost** — read DSH session logs (concatenated zstd frames via built-in `node:zlib`) and report tokens and cost by model, day, and project; cache-hit rate; monthly budget with a progress bar.
-- **Sessions** — list, preview, and export DSH session logs.
-- **Plugin security** — inventory installed plugins and audit the capabilities (seams) each one touches: fs, shell, subprocess, network, credentials, sandbox, mcp, llm. Risk-graded.
-- **Evaluation & regression** (the focus) — run a deterministic multi-task benchmark through the harness (chat, filesystem read/write/edit, glob, shell), each with an assertable outcome, in isolated throwaway workspaces; report pass/fail, latency, tokens, and cost per model; compare against a stored baseline to catch regressions after upgrades or config changes.
+![License](https://img.shields.io/github/license/limlnx523/dsh-plus-plus)
+![Node](https://img.shields.io/badge/node-%3E%3D20-3c873a)
+![Stars](https://img.shields.io/github/stars/limlnx523/dsh-plus-plus?style=flat)
+![CI](https://img.shields.io/github/actions/workflow/status/limlnx523/dsh-plus-plus/ci.yml?branch=main)
 
 ## Requirements
 
-- Node.js >= 20. The project uses only built-in modules (`node:zlib` for zstd decode) — no third-party runtime dependencies.
+- Node.js >= 20.
+- No third-party runtime dependencies. Built-in `node:zlib` decodes the concatenated-zstd session logs.
 
 ## Install
 
@@ -30,46 +26,101 @@ DeepSeek Harness is an agent framework where *everything is a plugin*. `dsh-plus
 npm i -g .
 ```
 
-The harness home is resolved from `$DSH_HOME` or `~/.dsh`.
-
-It can also be installed as a DeepSeek Harness plugin (adds a `/dshpp` slash command):
+Or install it as a harness plugin (adds a `/dshpp` slash command):
 
 ```sh
 dsh plugin --profile web add github:limlnx523/dsh-plus-plus
 ```
 
-## CLI
+## Quick start
 
 ```sh
-dshpp status                 # overview
-dshpp doctor                 # diagnostics
-dshpp env ls|set|rm          # credentials (masked by default)
-dshpp backup create|ls|restore|rm
-dshpp providers ls|export|probe
-dshpp usage                  # token/cost; by model/day/project; cache-hit rate
-dshpp sessions [export <id>]
-dshpp plugins                # inventory + seam audit
-dshpp eval [flash|pro|flash,pro]
-dshpp bench [flash|pro] [tasks]     # multi-task benchmark + regression
-dshpp budget set <usd>
-dshpp web                    # local console on 127.0.0.1:4848
+dshpp status     # overview
+dshpp doctor     # diagnostics
+dshpp audit      # plugin security risk report
+dshpp bench      # multi-task evaluation + regression vs baseline
+```
+
+## Example
+
+```text
+$ dshpp status
+
+[DSH++] DeepSeek Harness · status
+----------------------------------------------------
+  DSH home        C:\Users\you\.dsh
+  dsh CLI         present (C:\Users\you\AppData\Roaming\npm\dsh)
+  .env            found — 1 key(s), 1 secret(s) hidden
+  settings.yaml   C:\Users\you\.dsh\settings.yaml
+  provider keys   (none detected)
+  backups         2 snapshot(s)
+  DSH++ home      C:\Users\you\.dsh-plus-plus
+----------------------------------------------------
+  health: run `dshpp doctor` · console: run `dshpp web`
+
+$ dshpp audit
+
+[DSH++] DeepSeek Harness · control plane · plugin security audit  (197 plugin(s) · dsh 0.1.1-rc.2)
+  risk: 高=8  中=69  低=120
+  [中] @deepseek-ai/cordis-plugin-hmr@1.0.16  官方  seams=fs
+  [高] @deepseek-ai/dsh-client-connection@0.1.1-rc.2  官方  seams=network,shell,credentials,goal
+  [高] @deepseek-ai/dsh-host-apiproxy@0.1.1-rc.2  官方  seams=network,shell,credentials,llm
+  [高] @deepseek-ai/dsh-llm-pi-ai@0.1.1-rc.2  官方  seams=network,fs,credentials,llm
+  [高] @deepseek-ai/dsh-tool-cordis@0.1.1-rc.2  官方  seams=network,shell,credentials,sandbox,llm,goal
+
+  解读: 高/中风险插件可读取密钥、执行 shell 或访问网络。
+  只安装并保留信任的插件；识别为高风险的插件建议停用或移除。
+
+$ dshpp eval flash
+
+[DSH++] DeepSeek Harness · control plane · eval  probe: "只输出数字：12 加 30 等于几"  expected="42"
+  deepseek-v4-flash              PASS  43236ms  in=164 out=92  cost=$0.00015
+      ans: 42
+
+  vs baseline:
+    deepseek-v4-flash  turned-ok  latency +43236ms  cost -0.0093
+```
+
+## CLI
+
+```text
+dshpp status                      Overview (home, env, settings, backups)
+dshpp doctor                      Diagnostics checklist
+dshpp env ls [--show]             List credentials (masked unless --show)
+dshpp env set KEY=VALUE           Add/update a credential
+dshpp env rm KEY                  Remove a credential
+dshpp backup                      Create a timestamped snapshot
+dshpp backup ls                   List snapshots
+dshpp backup restore <id>         Restore a snapshot (auto pre-snapshot)
+dshpp backup rm <id>              Delete a snapshot
+dshpp providers ls|export|probe   List providers, export config, probe endpoint models
+dshpp usage                       Token/cost aggregate from session logs
+dshpp budget [set <usd>]          Show or set the monthly budget
+dshpp sessions                    List session logs
+dshpp sessions export <id>        Export a session as text
+dshpp plugins                     Inventory installed plugins + seam audit
+dshpp audit                       Security risk report for installed plugins
+dshpp eval [flash|pro|flash,pro]  Deterministic model probe + baseline diff
+dshpp bench [flash|pro] [tasks]   Multi-task benchmark + regression
+dshpp web [--port N] [--no-open]  Start the local web console (loopback only)
 ```
 
 ## Web console
 
-`dshpp web` serves a local console at `http://127.0.0.1:4848/` (loopback only). It surfaces providers, masked credentials, backups, usage and cost, sessions, plugins, and evaluation results. The UI is intentionally restrained — no gradients, no emoji, no dark-pattern styling.
+`dshpp web` serves a local console at `http://127.0.0.1:4848/`. It binds to loopback only. It surfaces providers, masked credentials, backups, usage and cost, sessions, plugins, and evaluation results. All secrets are masked unless you opt in with `--show`, and the console never returns raw key values over the API.
 
 ## Configuration
 
 - Harness home: `$DSH_HOME` or `~/.dsh`
-- Credentials: `$DSH_HOME/.env`
-- dsh-plus-plus state: `~/.dsh-plus-plus/` (backups, provider manifest, eval baseline, settings)
+- Credentials: `$DSH_HOME/.env` (never committed; snapshots warn when they include it)
+- dsh-plus-plus state: `~/.dsh-plus-plus/` (backups, provider manifest, eval/bench baselines)
 
 ## Development
 
 ```sh
 npm link
 node bin/dshpp.mjs --help
+npm test
 ```
 
 ## License

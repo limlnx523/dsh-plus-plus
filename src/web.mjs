@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { STATUS } from './status.mjs';
 import { readEnvFile, isSecretKey, maskSecret, resolveDSHHome, dirExists } from './dshhome.mjs';
 import { snapshot, restoreBackup, deleteBackup, BACKUP_ROOT } from './backup.mjs';
-import { doctor } from './doctor.mjs';
+import { doctor, collectDoctorChecks } from './doctor.mjs';
 import { listProviders, saveProvider, removeProvider, setDefault, probeModels, exportSettings } from './providers.mjs';
 import { collectUsage } from './usage.mjs';
 import { getBudget, setBudget } from './config.mjs';
@@ -17,6 +17,12 @@ import { evalRun } from './eval.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const WEB = path.join(ROOT, 'web');
+
+const BASE_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'no-referrer',
+};
+const CSP = "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'";
 
 function readBody(req, limit = 1_000_000) {
   return new Promise((resolve, reject) => {
@@ -32,7 +38,7 @@ function readBody(req, limit = 1_000_000) {
 
 function json(res, code, obj) {
   const body = JSON.stringify(obj);
-  res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' });
+  res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', ...BASE_HEADERS });
   res.end(body);
 }
 
@@ -42,19 +48,19 @@ function asset(res, file) {
   const full = path.join(WEB, file);
   if (!full.startsWith(WEB + path.sep) && full !== path.join(WEB, 'index.html')) return json(res, 404, { error: 'not found' });
   if (!fs.existsSync(full) || !fs.statSync(full).isFile()) return json(res, 404, { error: 'not found' });
-  res.writeHead(200, { 'content-type': types[ext] || 'application/octet-stream', 'cache-control': 'no-store' });
+  const headers = { 'content-type': types[ext] || 'application/octet-stream', 'cache-control': 'no-store', ...BASE_HEADERS };
+  if (ext === '.html') headers['Content-Security-Policy'] = CSP;
+  res.writeHead(200, headers);
   fs.createReadStream(full).pipe(res);
 }
 
 export async function startWeb(opts = {}) {
-  const port = opts.port || 4848;
-  let doctorCache = null;
+  const port = Number(opts.port) || 4848;
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1');
     const p = url.pathname;
     try {
-      // API
       if (p === '/api/status') { const st = await STATUS(opts); return json(res, 200, st); }
       if (p === '/api/env') {
         const home = resolveDSHHome(opts.home);
@@ -74,7 +80,7 @@ export async function startWeb(opts = {}) {
           : [];
         return json(res, 200, { items: ids });
       }
-      if (p === '/api/doctor') { doctorCache = doctorCache || []; return json(res, 200, { ok: true }); }
+      if (p === '/api/doctor') { const d = collectDoctorChecks(opts); return json(res, 200, { ok: true, home: d.home, checks: d.checks, fails: d.fails, warns: d.warns }); }
 
       if (p === '/api/providers') return json(res, 200, listProviders(opts));
       if (p === '/api/providers/export') return json(res, 200, { text: exportSettings(opts) });
@@ -89,7 +95,6 @@ export async function startWeb(opts = {}) {
       if (req.method === 'POST' && p === '/api/providers/default') { const b = await readBody(req); if (!b.provider) return json(res, 400, { error: 'provider required' }); setDefault(b.provider, b.model); return json(res, 200, { ok: true }); }
       if (req.method === 'POST' && p === '/api/providers/probe') { const b = await readBody(req); const r = await probeModels(opts, b); return json(res, 200, r); }
 
-      // mutations
       if (req.method === 'POST' && p === '/api/env/set') {
         const b = await readBody(req);
         if (!b.key || !('value' in b)) return json(res, 400, { error: 'key and value required' });
@@ -109,7 +114,6 @@ export async function startWeb(opts = {}) {
         await restoreBackup(opts, b.id);
         return json(res, 200, { ok: true });
       }
-
       if (req.method === 'POST' && p === '/api/backup/delete') {
         const b = await readBody(req);
         if (!b.id) return json(res, 400, { error: 'id required' });
@@ -117,7 +121,6 @@ export async function startWeb(opts = {}) {
         return json(res, 200, { ok: true });
       }
 
-      // static
       if (p === '/') return asset(res, 'index.html');
       if (p.startsWith('/assets/')) return asset(res, p.slice(1));
       return json(res, 404, { error: 'not found' });
@@ -126,6 +129,7 @@ export async function startWeb(opts = {}) {
     }
   });
 
+  // Loopback only: the console is local tooling and must never bind beyond 127.0.0.1.
   server.listen(port, '127.0.0.1', () => {
     const addr = `http://127.0.0.1:${port}/`;
     console.log(`\n[DSH++] console running at ${addr}`);
@@ -145,12 +149,6 @@ function openBrowser(url) {
   } catch { /* non-fatal */ }
 }
 
-function require_home() {
-  const os = process.platform === 'win32' ? process.env.USERPROFILE : process.env.HOME;
-  return os || process.cwd();
-}
-
-// lazy imports of env.mjs to avoid top-level circular uses
 let envSetFn, envRemoveFn;
 async function requireEnvSet(opts, key, value) {
   if (!envSetFn) envSetFn = (await import('./env.mjs')).envSet;

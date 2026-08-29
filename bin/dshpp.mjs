@@ -19,51 +19,88 @@ import { DSHPP_HOME } from '../src/dshhome.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+function banner() {
+  return `[DSH++] DeepSeek Harness · control plane`;
+}
+
 function usage() {
-  console.log(`
-DSH++ — DeepSeek Harness lifecycle & provider manager
+  console.log(`${banner()}
 
 Usage:
-  dshpp status                         Show DSH home, env, backup, diagnostics summary
-  dshpp env ls [--show]                List credentials (masked by default)
-  dshpp env set KEY=VALUE [--env-name N] Add/update a credential
-  dshpp env rm KEY                    Remove a credential
-  dshpp backup                         Create a timestamped snapshot
-  dshpp backup ls                      List snapshots
-  dshpp restore <id>                   Restore a snapshot
-  dshpp backup rm <id>                 Delete a snapshot
-  dshpp doctor                         Run environment/diagnostic checks
-  dshpp providers ls|export|probe       List providers, export config, probe endpoint models
-  dshpp eval [flash,pro]                 Run deterministic model probe, diff vs baseline
-  dshpp bench [flash|pro] [tasks]       Multi-task benchmark (chat/fs/edit/glob/shell) + regression
-  dshpp usage                           Aggregate token usage from session logs (per model)
-  dshpp budget                          Show/set monthly budget (dshpp budget set <usd>)
-  dshpp web [--port N] [--no-open]     Start the local web console
-  dshpp help                           Show this help
+  dshpp status                      Overview (home, env, settings, backups)
+  dshpp doctor                      Diagnostics checklist
+  dshpp env ls [--show]             List credentials (masked unless --show)
+  dshpp env set KEY=VALUE           Add/update a credential
+  dshpp env rm KEY                  Remove a credential
+  dshpp backup                      Create a timestamped snapshot
+  dshpp backup ls                   List snapshots
+  dshpp backup restore <id>         Restore a snapshot (auto pre-snapshot)
+  dshpp backup rm <id>              Delete a snapshot
+  dshpp providers ls|export|probe   List providers, export config, probe endpoint models
+  dshpp usage                       Token/cost aggregate from session logs
+  dshpp budget [set <usd>]          Show or set the monthly budget
+  dshpp sessions                    List session logs
+  dshpp sessions export <id>        Export a session as text
+  dshpp plugins                     Inventory installed plugins + seam audit
+  dshpp audit                       Security risk report for installed plugins
+  dshpp eval [flash|pro|flash,pro]  Deterministic model probe + baseline diff
+  dshpp bench [flash|pro] [tasks]   Multi-task benchmark + regression
+  dshpp web [--port N] [--no-open]  Start the local web console (loopback only)
+  dshpp help                        Show this help
 
 DSH home defaults to $DSH_HOME or ~/.dsh. Override with --home <dir>.
 DSH++ keeps its own state in ${DSHPP_HOME}.
 `);
 }
 
+function modelFor(variant) {
+  if (variant.includes('pro')) return 'deepseek-v4-pro';
+  if (variant.includes('vision')) return 'deepseek-v4-flash-vision-exp';
+  return 'deepseek-v4-flash';
+}
+
+function riskSummary(plugins) {
+  const counts = { 高: 0, 中: 0, 低: 0 };
+  for (const p of plugins) if (counts[p.risk] !== undefined) counts[p.risk]++;
+  return counts;
+}
+
+function printPluginAudit(r, opts) {
+  const counts = riskSummary(r.plugins);
+  console.log(`\n${banner()} · plugin security audit  (${r.count} plugin(s) · dsh ${r.dshVersion || '?'})`);
+  console.log('  risk: 高=' + counts['高'] + '  中=' + counts['中'] + '  低=' + counts['低']);
+  const risky = r.plugins.filter((p) => p.risk === '高' || p.risk === '中');
+  const shown = opts.all ? r.plugins : risky;
+  if (!shown.length) {
+    console.log('  no high/medium-risk plugin found.');
+  } else {
+    for (const p of shown) {
+      console.log(`  [${p.risk}] ${p.name}@${p.version}  ${p.kind}  seams=${p.seams.join(',') || '-'}`);
+    }
+  }
+  console.log('\n  解读: 高/中风险插件可读取密钥、执行 shell 或访问网络。');
+  console.log('  只安装并保留信任的插件；识别为高风险的插件建议停用或移除。');
+  if (risky.length > shown.length) console.log(`  (另有 ${risky.length - shown.length} 个风险插件，用 --all 查看全部)`);
+}
+
 async function main() {
-  const argv = process.argv.slice(2);
-  const args = [...argv];
+  const args = [...process.argv.slice(2)];
   const flags = {};
 
-  // parse global flags (--home, --port, --show, --no-open, --env-name)
+  // parse global flags
   for (let i = args.length - 1; i >= 0; i--) {
     const a = args[i];
     if (a === '--home') { flags.home = args[i + 1] ?? ''; args.splice(i, 2); }
     else if (a === '--port') { flags.port = Number(args[i + 1]) || 0; args.splice(i, 2); }
     else if (a === '--show') { flags.show = true; args.splice(i, 1); }
+    else if (a === '--all') { flags.all = true; args.splice(i, 1); }
     else if (a === '--open') { flags.open = true; args.splice(i, 1); }
     else if (a === '--no-open') { flags.noOpen = true; args.splice(i, 1); }
     else if (a === '--env-name') { flags.envName = args[i + 1] ?? 'default'; args.splice(i, 2); }
   }
 
   const cmd = args[0] ?? 'status';
-  let opts = { home: flags.home || process.env.DSH_HOME || undefined, show: flags.show, envName: flags.envName };
+  const opts = { home: flags.home || process.env.DSH_HOME || undefined, show: flags.show, all: flags.all, envName: flags.envName };
 
   switch (cmd) {
     case 'help':
@@ -120,26 +157,29 @@ async function main() {
         return;
       }
       const r = await listSessions(opts);
-      console.log(`\n[DSH++] sessions (${r.count})`);
+      console.log(`\n${banner()} · sessions (${r.count})`);
       for (const s of r.items) {
         console.log(`  ${s.id}  ${new Date(s.createdAt || 0).toISOString().replace('T', ' ').slice(0, 19)}  ${s.turns} turn  ${s.model || ''}  in=${s.inputTokens} out=${s.outputTokens}`);
       }
       return;
     }
 
-    case 'plugins': {
+    case 'plugins':
+    case 'audit': {
       const r = await listPlugins(opts);
-      console.log(`\n[DSH++] plugins (${r.count})  dsh=${r.dshVersion}`);
+      if (cmd === 'audit') { printPluginAudit(r, opts); return; }
+      console.log(`\n${banner()} · plugins (${r.count})  dsh=${r.dshVersion}`);
       for (const p of r.plugins) {
         console.log(`  [${p.kind}] ${p.name}@${p.version}  risk=${p.risk}  seams=${p.seams.join(',') || '-'}`);
       }
       return;
     }
+
     case 'eval': {
       const variants = (args[1] || 'flash').split(',');
-      const models = variants.map((v) => (v.includes('pro') ? 'deepseek-v4-pro' : v.includes('vision') ? 'deepseek-v4-flash-vision-exp' : 'deepseek-v4-flash'));
+      const models = variants.map(modelFor);
       const r = await evalRun(opts, models);
-      console.log(`\n[DSH++] eval  probe: \"${PROBE}\"  expected=\"${EXPECTED}\"`);
+      console.log(`\n${banner()} · eval  probe: "${PROBE}"  expected="${EXPECTED}"`);
       for (const res of r.results) {
         console.log(`  ${(res.model || '').padEnd(30)} ${res.ok ? 'PASS' : 'FAIL'}${res.timeout ? ' (timeout)' : ''}  ${res.latencyMs}ms  in=${res.tokensIn} out=${res.tokensOut}  cost=$${res.cost.toFixed(5)}`);
         if (res.answer) console.log(`      ans: ${res.answer}`);
@@ -147,19 +187,20 @@ async function main() {
       if (r.diff) {
         console.log('\n  vs baseline:');
         for (const d of r.diff) {
-          if (d.change === 'new') { console.log(`    ${d.model}  (新加入)`); continue; }
+          if (d.change === 'new') { console.log(`    ${d.model}  (new)`); continue; }
           console.log(`    ${d.model}  ${d.okChange}  latency ${d.latencyDeltaMs > 0 ? '+' : ''}${d.latencyDeltaMs}ms  cost ${(d.costDelta || 0).toFixed(4)}`);
         }
       }
       return;
     }
+
     case 'bench': {
       const variants = (args[1] || 'flash').split(',');
-      const models = variants.map((v) => (v.includes('pro') ? 'deepseek-v4-pro' : v.includes('vision') ? 'deepseek-v4-flash-vision-exp' : 'deepseek-v4-flash'));
+      const models = variants.map(modelFor);
       const maxTasks = Number(args[2]) || 2;
       const r = await runBenchmark(opts, models, maxTasks);
       const tasks = r.models[0]?.results?.length || 0;
-      console.log(`\n[DSH++] benchmark  tasks=${tasks}  models=${models.join(',')}`);
+      console.log(`\n${banner()} · benchmark  tasks=${tasks}  models=${models.join(',')}`);
       for (const s of r.models) {
         console.log(`\n  ${s.model}  ok=${s.agg.ok}/${s.agg.tasks}  fail=${s.agg.fail}  latency=${s.agg.totalLatencyMs}ms  in=${s.agg.inputTokens} out=${s.agg.outputTokens}  cost=${formatCost(s.agg.cost)}`);
         for (const t of s.results) {
@@ -175,6 +216,7 @@ async function main() {
       }
       return;
     }
+
     case 'budget': {
       const sub = args[1];
       if (sub === 'set') {
@@ -193,15 +235,16 @@ async function main() {
       if (spent > b.monthly) console.log('  !! OVER BUDGET');
       return;
     }
+
     case 'usage': {
       const r = await collectUsage(opts);
-      console.log(`\n[DSH++] usage  (${r.sessions} session(s) / ${r.calls} call(s))`);
+      console.log(`\n${banner()} · usage  (${r.sessions} session(s) / ${r.calls} call(s))`);
       console.log(`  input        ${formatTokens(r.totals.inputTokens)}  (${r.totals.inputTokens})`);
       console.log(`  output       ${formatTokens(r.totals.outputTokens)}  (${r.totals.outputTokens})`);
       console.log(`  cache_read   ${formatTokens(r.totals.cacheReadTokens)}`);
       console.log(`  reasoning    ${formatTokens(r.totals.reasoningTokens)}`);
       console.log(`  cache hit    ${formatPercent(r.totals.cacheHitRate)}`);
-      if (r.prices) console.log(`  est. cost    ${formatCost(r.totals.cost)}   ${r.note}`);
+      console.log(`  est. cost    ${r.prices ? formatCost(r.totals.cost) : '(no prices configured)'}${r.prices ? '  ' + r.note : ''}`);
       { const bu = getBudget(); if (bu) { const prefix = new Date().toISOString().slice(0, 7); const spent = (r.byDay || []).filter((d) => d.day && d.day.startsWith(prefix)).reduce((a, d) => a + (d.cost || 0), 0); console.log(`  budget      ${formatCost(bu.monthly)} / ${formatCost(spent)}${spent > bu.monthly ? '  !! OVER' : ''}`); } }
       console.log('\n  by model:');
       for (const m of r.byModel) {
@@ -217,6 +260,7 @@ async function main() {
       }
       return;
     }
+
     case 'web': {
       await startWeb({ ...opts, port: flags.port, open: !!flags.open });
       return;
@@ -226,7 +270,7 @@ async function main() {
       const sub = args[1] || 'ls';
       if (sub === 'ls' || sub === 'list') {
         const data = listProviders(opts);
-        console.log(`\n[DSH++] providers (${data.providers.length})`);
+        console.log(`\n${banner()} · providers (${data.providers.length})`);
         for (const p of data.providers) {
           console.log(`  ${p.id.padEnd(16)} ${p.name.padEnd(18)} ${p.baseURL || '(no url)'}  key=${p.apiKeyRef || '-'}  models=${p.models.length}`);
         }
@@ -256,6 +300,7 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('\n[DSH++] ' + err.message);
-  process.exit(1);
+  const usageErr = /^usage:|unknown command|subcommands:/i.test(err.message || '');
+  console.error(`\n[DSH++] ${err.message}`);
+  process.exit(usageErr ? 2 : 1);
 });

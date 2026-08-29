@@ -16,8 +16,12 @@ jobs:
           node-version: 24
       - name: Syntax check (all modules)
         run: |
-          for f in bin/dshpp.mjs src/*.mjs; do
+          for f in bin/dshpp.mjs src/*.mjs lib/index.js; do
             node --check "$f" || exit 1
           done
       - name: CLI smoke
-        run: node bin/dshpp.mjs --help >/dev/null && echo "cli-ok"
+        run: node bin/dshpp.mjs --help >/dev/null
+      - name: Tests
+        run: npm test
+      - name: Package dry-run
+        run: npm pack --dry-run

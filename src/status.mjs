@@ -6,6 +6,7 @@ import {
   DSHPP_HOME, formatBytes, timeAgo,
 } from './dshhome.mjs';
 import { BACKUP_ROOT } from './backup.mjs';
+import { parseSettingsTop } from './dshadapter.mjs';
 
 function hasInPath(bin) {
   const exts = process.platform === 'win32' ? ['', '.exe', '.cmd', '.ps1'] : [''];
@@ -35,7 +36,7 @@ export async function STATUS(opts) {
   let providerHints = [];
   if (settings) {
     try {
-      settingsTop = Object.keys(parseMiniYamlTop(fs.readFileSync(settings, 'utf8')));
+      settingsTop = Object.keys(parseSettingsTop(fs.readFileSync(settings, 'utf8')));
       const text = fs.readFileSync(settings, 'utf8').toLowerCase();
       if (/(provider|base_url|baseurl|api_key|model)/.test(text)) {
         providerHints = settingsTop.filter((k) => /provider|model|llm|api|key|route|env/i.test(k));
@@ -73,15 +74,3 @@ export function printStatus(st) {
   console.log('  health: run `dshpp doctor` · console: run `dshpp web`');
 }
 
-function parseMiniYamlTop(text) {
-  const out = [];
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.replace(/\s*#.*$/, '').trimEnd();
-    if (!line.trim() || line.trimStart().startsWith('#')) continue;
-    if (line.search(/\S/) === 0 && line.includes(':')) {
-      const key = line.slice(0, line.indexOf(':')).trim();
-      if (key) out.push(key);
-    }
-  }
-  return Object.fromEntries(out.map((k) => [k, true]));
-}

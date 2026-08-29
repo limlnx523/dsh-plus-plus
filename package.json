@@ -1,16 +1,35 @@
 {
   "name": "dsh-plus-plus",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "DSH++ — a Windows-first lifecycle & provider manager for DeepSeek Harness (dsh). Minimal, local-first, zero-runtime-deps.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
-    ".": {"types": "./lib/types/index.d.ts", "default": "./lib/index.js"},
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
     "./package.json": "./package.json"
   },
-  "files": ["lib/", "bin/", "src/", "web/", "cordis.patch.yml", "README.md", "LICENSE"],
-  "dsh": {"bundle": {"patch": "./cordis.patch.yml"}},
-  "peerDependencies": {"@deepseek-ai/dsh-commands": "^0.1.1-rc.2", "@deepseek-ai/cordis": "^4.0.1"},
+  "files": [
+    "lib/",
+    "bin/",
+    "src/",
+    "web/",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "assets/"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-commands": "^0.1.1-rc.2",
+    "@deepseek-ai/cordis": "^4.0.1"
+  },
   "bin": {
     "dshpp": "bin/dshpp.mjs",
     "dsh-plus-plus": "bin/dshpp.mjs"
@@ -22,11 +41,28 @@
     "start": "node bin/dshpp.mjs",
     "web": "node bin/dshpp.mjs web",
     "doctor": "node bin/dshpp.mjs doctor",
-    "status": "node bin/dshpp.mjs status"
+    "status": "node bin/dshpp.mjs status",
+    "test": "node --test",
+    "audit": "node bin/dshpp.mjs audit"
   },
   "license": "MIT",
-  "repository": {"type": "git", "url": "git+https://github.com/limlnx523/dsh-plus-plus.git"},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/limlnx523/dsh-plus-plus.git"
+  },
   "homepage": "https://github.com/limlnx523/dsh-plus-plus",
-  "keywords": ["deepseek", "harness", "dsh", "dsh-plugin", "deepseek-harness", "agent", "cli", "plugin", "usage", "security", "windows"],
+  "keywords": [
+    "deepseek",
+    "harness",
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "agent",
+    "cli",
+    "plugin",
+    "usage",
+    "security",
+    "windows"
+  ],
   "private": false
 }
