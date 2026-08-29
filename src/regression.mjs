@@ -165,6 +165,9 @@ export async function runRegression(opts = {}, { ids } = {}) {
   const home = resolveDSHHome(opts.home);
   const fallback = activeModel(home);
   const selected = ids && ids.length ? CASES.filter((c) => ids.includes(c.id)) : CASES;
+  if (ids && ids.length && selected.length === 0) {
+    throw new Error('no matching regression case: ' + ids.join(',') + ' (available: ' + CASES.map((c) => c.id).join(', ') + ')');
+  }
   const results = [];
   for (const c of selected) results.push(await runCase(opts, c));
 
