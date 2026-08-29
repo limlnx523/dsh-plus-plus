@@ -13,8 +13,7 @@ import { collectUsage, formatTokens, formatCost, formatPercent } from '../src/us
 import { getBudget, setBudget } from '../src/config.mjs';
 import { listSessions, exportSession } from '../src/sessions.mjs';
 import { listPlugins } from '../src/plugins.mjs';
-import { evalRun, PROBE, EXPECTED } from '../src/eval.mjs';
-import { runBenchmark } from '../src/benchmark.mjs';
+import { runRegression } from '../src/regression.mjs';
 import { DSHPP_HOME } from '../src/dshhome.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -43,20 +42,13 @@ Usage:
   dshpp sessions export <id>        Export a session as text
   dshpp plugins                     Inventory installed plugins + seam audit
   dshpp audit                       Security risk report for installed plugins
-  dshpp eval [flash|pro|flash,pro]  Deterministic model probe + baseline diff
-  dshpp bench [flash|pro] [tasks]   Multi-task benchmark + regression
+  dshpp test [--case <id>]          Regression-test the DSH workflow vs baseline
   dshpp web [--port N] [--no-open]  Start the local web console (loopback only)
   dshpp help                        Show this help
 
 DSH home defaults to $DSH_HOME or ~/.dsh. Override with --home <dir>.
 DSH++ keeps its own state in ${DSHPP_HOME}.
 `);
-}
-
-function modelFor(variant) {
-  if (variant.includes('pro')) return 'deepseek-v4-pro';
-  if (variant.includes('vision')) return 'deepseek-v4-flash-vision-exp';
-  return 'deepseek-v4-flash';
 }
 
 function riskSummary(plugins) {
@@ -80,14 +72,38 @@ function printPluginAudit(r, opts) {
   }
   console.log('\n  解读: 高/中风险插件可读取密钥、执行 shell 或访问网络。');
   console.log('  只安装并保留信任的插件；识别为高风险的插件建议停用或移除。');
-  if (risky.length > shown.length) console.log(`  (另有 ${risky.length - shown.length} 个风险插件，用 --all 查看全部)`);
+}
+
+function fmtCost(n) { return '$' + (n || 0).toFixed(5); }
+
+function printRegression(r) {
+  const f = r.fingerprint || {};
+  console.log(`\n${banner()} · regression test  ${r.cases.length} case(s)  model=${f.model || '?'}  dsh=${f.dshVersion || '?'}`);
+  for (const c of r.cases) {
+    const ms = (c.latencyMs / 1000).toFixed(1) + 's';
+    console.log(`  ${(c.ok ? 'PASS' : 'FAIL').padEnd(5)} ${c.id.padEnd(12)} ${ms.padStart(6)}  in=${c.tokensIn} out=${c.tokensOut}  cost=${fmtCost(c.cost)}  ${c.detail || ''}`);
+    if (!c.ok && c.answer) console.log(`        out: ${c.answer}`);
+  }
+  if (r.diff && r.diff.length) {
+    console.log('\n  vs baseline:');
+    for (const d of r.diff) {
+      if (d.change === 'new') { console.log(`    ${d.id.padEnd(12)} (new)`); continue; }
+      const lag = (d.latencyDeltaMs / 1000).toFixed(1);
+      const note = d.change === 'regressed' ? '  !! REGRESSION' : d.change === 'fixed' ? '  (fixed)' : '';
+      console.log(`    ${d.id.padEnd(12)} ${d.change.padEnd(9)} latency ${lag}s  cost ${d.costDelta.toFixed(4)}${note}`);
+    }
+  } else if (r.cases.length) {
+    console.log('\n  baseline saved (no prior run to compare).');
+  }
+  if (r.regressed && r.regressed.length) console.log('\n  !! regression detected: ' + r.regressed.map((d) => d.id).join(', '));
+  else if (r.failed && r.failed.length) console.log('\n  !! failing case(s): ' + r.failed.map((c) => c.id).join(', '));
+  else console.log('\n  no regression.');
 }
 
 async function main() {
   const args = [...process.argv.slice(2)];
   const flags = {};
 
-  // parse global flags
   for (let i = args.length - 1; i >= 0; i--) {
     const a = args[i];
     if (a === '--home') { flags.home = args[i + 1] ?? ''; args.splice(i, 2); }
@@ -96,11 +112,12 @@ async function main() {
     else if (a === '--all') { flags.all = true; args.splice(i, 1); }
     else if (a === '--open') { flags.open = true; args.splice(i, 1); }
     else if (a === '--no-open') { flags.noOpen = true; args.splice(i, 1); }
+    else if (a === '--case') { flags.case = (args[i + 1] ?? '').split(',').filter(Boolean); args.splice(i, 2); }
     else if (a === '--env-name') { flags.envName = args[i + 1] ?? 'default'; args.splice(i, 2); }
   }
 
   const cmd = args[0] ?? 'status';
-  const opts = { home: flags.home || process.env.DSH_HOME || undefined, show: flags.show, all: flags.all, envName: flags.envName };
+  const opts = { home: flags.home || process.env.DSH_HOME || undefined, show: flags.show, all: flags.all, case: flags.case, envName: flags.envName };
 
   switch (cmd) {
     case 'help':
@@ -175,45 +192,14 @@ async function main() {
       return;
     }
 
-    case 'eval': {
-      const variants = (args[1] || 'flash').split(',');
-      const models = variants.map(modelFor);
-      const r = await evalRun(opts, models);
-      console.log(`\n${banner()} · eval  probe: "${PROBE}"  expected="${EXPECTED}"`);
-      for (const res of r.results) {
-        console.log(`  ${(res.model || '').padEnd(30)} ${res.ok ? 'PASS' : 'FAIL'}${res.timeout ? ' (timeout)' : ''}  ${res.latencyMs}ms  in=${res.tokensIn} out=${res.tokensOut}  cost=$${res.cost.toFixed(5)}`);
-        if (res.answer) console.log(`      ans: ${res.answer}`);
-      }
-      if (r.diff) {
-        console.log('\n  vs baseline:');
-        for (const d of r.diff) {
-          if (d.change === 'new') { console.log(`    ${d.model}  (new)`); continue; }
-          console.log(`    ${d.model}  ${d.okChange}  latency ${d.latencyDeltaMs > 0 ? '+' : ''}${d.latencyDeltaMs}ms  cost ${(d.costDelta || 0).toFixed(4)}`);
-        }
-      }
-      return;
-    }
-
-    case 'bench': {
-      const variants = (args[1] || 'flash').split(',');
-      const models = variants.map(modelFor);
-      const maxTasks = Number(args[2]) || 2;
-      const r = await runBenchmark(opts, models, maxTasks);
-      const tasks = r.models[0]?.results?.length || 0;
-      console.log(`\n${banner()} · benchmark  tasks=${tasks}  models=${models.join(',')}`);
-      for (const s of r.models) {
-        console.log(`\n  ${s.model}  ok=${s.agg.ok}/${s.agg.tasks}  fail=${s.agg.fail}  latency=${s.agg.totalLatencyMs}ms  in=${s.agg.inputTokens} out=${s.agg.outputTokens}  cost=${formatCost(s.agg.cost)}`);
-        for (const t of s.results) {
-          console.log(`    ${(t.ok ? 'PASS' : 'FAIL').padEnd(5)} ${t.id.padEnd(12)} ${t.latencyMs}ms  ${t.detail}`);
-        }
-      }
-      if (r.diff) {
-        console.log('\n  vs baseline:');
-        for (const d of r.diff) {
-          if (d.change === 'new') { console.log(`    ${d.model}  (new)`); continue; }
-          console.log(`    ${d.model}  ok ${d.okChange > 0 ? '+' : ''}${d.okChange}/${d.failChange}  latency ${(d.latencyDeltaMs || 0) > 0 ? '+' : ''}${d.latencyDeltaMs}ms  cost ${(d.costDelta || 0).toFixed(4)}${d.broke ? '  !! REGRESSION' : ''}`);
-        }
-      }
+    case 'test':
+    case 'eval':
+    case 'bench':
+    case 'check': {
+      const r = await runRegression(opts, { ids: opts.case });
+      printRegression(r);
+      if (r.failed && r.failed.length) process.exitCode = 1;
+      else if (r.regressed && r.regressed.length) process.exitCode = 1;
       return;
     }
 

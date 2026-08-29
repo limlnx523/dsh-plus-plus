@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1
+
+- **Refocused Evaluation as regression testing for DSH workflows**, not an LLM benchmark. The subject is the whole configured DSH system (model, prompt, plugins, config, harness version). A run executes the fixed cases against the current config, records a fingerprint, stores a baseline, and reports per-case regressions.
+- Merged the previous `eval` (single probe + model loop + settings mutation) and `bench` (multi-task model aggregation) into one `src/regression.mjs`; removed the model-comparison axis and the risky temporary `settings.yaml` rewrite, and ran the suite once against the current config instead of looping models.
+- CLI: `dshpp test [--case <id>]` (aliases `eval`/`bench`/`check`); any failing or regressed case exits non-zero so the command can act as a CI gate.
+- Web console: `/api/eval` now returns regression cases + diff (kept `results`/`model`/`okChange` for back-compat); the console panel is labelled regression testing.
+- Docs: README describes Evaluation as "Regression testing for DSH workflows" and shows a `dshpp test` example.
+- Tests: `test/regression.test.mjs` covers case shape and regression-diff detection.
+
 ## 0.2.0
 
 - **Positioning**: scoped the project as a local-first control plane and operational tooling for DeepSeek Harness, centered on lifecycle, plugin security audit, and evaluation/regression.

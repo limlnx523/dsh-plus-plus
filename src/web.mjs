@@ -12,7 +12,7 @@ import { collectUsage } from './usage.mjs';
 import { getBudget, setBudget } from './config.mjs';
 import { listSessions, exportSession } from './sessions.mjs';
 import { listPlugins } from './plugins.mjs';
-import { evalRun } from './eval.mjs';
+import { runRegression } from './regression.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -88,7 +88,7 @@ export async function startWeb(opts = {}) {
       if (p === '/api/budget') { if (req.method === 'POST') { const b = await readBody(req); setBudget(b.monthly); return json(res, 200, { budget: getBudget() }); } return json(res, 200, { budget: getBudget() }); }
       if (p === '/api/sessions') { const r = await listSessions(opts); return json(res, 200, r); }
       if (p === '/api/plugins') { const r = await listPlugins(opts); return json(res, 200, r); }
-      if (req.method === 'POST' && p === '/api/eval') { const b = await readBody(req); const r = await evalRun(opts, b.models || []); return json(res, 200, r); }
+      if (req.method === 'POST' && p === '/api/eval') { const b = await readBody(req); const r = await runRegression(opts, { ids: b.ids }); return json(res, 200, r); }
       if (req.method === 'POST' && p === '/api/sessions/export') { const b = await readBody(req); const r = await exportSession(opts, b.id || ''); return json(res, 200, r); }
       if (req.method === 'POST' && p === '/api/providers/save') { const b = await readBody(req); const e = saveProvider(opts, b); return json(res, 200, { ok: true, provider: e }); }
       if (req.method === 'POST' && p === '/api/providers/remove') { const b = await readBody(req); if (!b.id) return json(res, 400, { error: 'id required' }); removeProvider(b.id); return json(res, 200, { ok: true }); }
