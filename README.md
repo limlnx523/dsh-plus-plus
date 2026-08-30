@@ -2,18 +2,33 @@
 
 <p align="center"><img src="assets/logo.svg" width="96" alt="dsh-plus-plus"></p>
 
-**dsh-plus-plus** is a local-first control plane and operational tooling for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`). It runs on your machine, reads the same `$DSH_HOME` state the harness does, and surfaces it through a CLI and a loopback-only web console.
+**DSH++ — a local-first control plane for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`).**
 
-It does not replace the harness. It covers the operational gaps the harness does not ship:
+It runs on your machine, reads the same `$DSH_HOME` state the harness does, and gives you the operational layer the harness doesn't ship.
 
-- **Lifecycle** — detect the install, snapshot and roll back configuration, run diagnostics.
-- **Plugin security audit** — inventory installed plugins, classify the capabilities (seams) each one touches, and grade risk.
-- **Regression testing for DSH workflows** — run a fixed set of harness tasks against the current DSH configuration (model, prompt, plugins, config, harness version), compare to a stored baseline, and flag what an upgrade or change broke.
+**What it solves**
+
+- You can't easily see which plugins are installed, or what each one can reach (filesystem, shell, network, credentials).
+- A config change, a new plugin, a prompt tweak, or a harness upgrade can silently break a workflow — and you only find out later.
+- Credentials, config, and sessions live in `$DSH_HOME` with no snapshot/rollback or usage/cost view.
+
+**Two core capabilities**
+
+1. **Plugin security audit** — `dshpp audit` inventories installed plugins, classifies the capabilities (seams) each one touches, grades risk, and flags what to remove.
+2. **Workflow regression testing** — `dshpp test` runs a fixed set of harness tasks against your current DSH configuration, compares to a stored baseline, and reports regressions. It exits non-zero on a regression, so it can gate CI.
+
+It also ships operational tooling: install detection, config snapshot/rollback, diagnostics, provider and credential management, and usage/cost analytics — through a CLI and a loopback-only web console.
 
 ![License](https://img.shields.io/github/license/limlnx523/dsh-plus-plus)
 ![Node](https://img.shields.io/badge/node-%3E%3D20-3c873a)
 ![Stars](https://img.shields.io/github/stars/limlnx523/dsh-plus-plus?style=flat)
 ![CI](https://img.shields.io/github/actions/workflow/status/limlnx523/dsh-plus-plus/ci.yml?branch=main)
+
+## Demo
+
+Change a DSH workflow, run `dshpp test`, and it finds the regression:
+
+<p align="center"><img src="assets/demo-regression.gif" width="760" alt="dshpp test after changing the DSH workflow finds a regression"></p>
 
 ## Requirements
 
@@ -35,8 +50,7 @@ dsh plugin --profile web add github:limlnx523/dsh-plus-plus
 ## Quick start
 
 ```sh
-dshpp status     # overview
-dshpp doctor     # diagnostics
+dshpp status     # overview of the DSH install
 dshpp audit      # plugin security risk report
 dshpp test       # regression-test the DSH workflow vs baseline
 ```
@@ -62,10 +76,8 @@ $ dshpp audit
 
 [DSH++] DeepSeek Harness · control plane · plugin security audit  (197 plugin(s) · dsh 0.1.1-rc.2)
   risk: 高=8  中=69  低=120
-  [中] @deepseek-ai/cordis-plugin-hmr@1.0.16  官方  seams=fs
   [高] @deepseek-ai/dsh-client-connection@0.1.1-rc.2  官方  seams=network,shell,credentials,goal
   [高] @deepseek-ai/dsh-host-apiproxy@0.1.1-rc.2  官方  seams=network,shell,credentials,llm
-  [高] @deepseek-ai/dsh-llm-pi-ai@0.1.1-rc.2  官方  seams=network,fs,credentials,llm
   [高] @deepseek-ai/dsh-tool-cordis@0.1.1-rc.2  官方  seams=network,shell,credentials,sandbox,llm,goal
 
   解读: 高/中风险插件可读取密钥、执行 shell 或访问网络。
@@ -112,13 +124,12 @@ dshpp sessions export <id>        Export a session as text
 dshpp plugins                     Inventory installed plugins + seam audit
 dshpp audit                       Security risk report for installed plugins
 dshpp test [--case <id>]          Regression-test the DSH workflow vs baseline
-
 dshpp web [--port N] [--no-open]  Start the local web console (loopback only)
 ```
 
 ## Web console
 
-`dshpp web` serves a local console at `http://127.0.0.1:4848/`. It binds to loopback only. It surfaces providers, masked credentials, backups, usage and cost, sessions, plugins, and regression results. All secrets are masked unless you opt in with `--show`, and the console never returns raw key values over the API.
+`dshpp web` serves a local console at `http://127.0.0.1:4848/`. It binds to loopback only. It surfaces providers, masked credentials, backups, usage and cost, sessions, plugins, and regression results. Secrets are masked unless you opt in with `--show`, and the console never returns raw key values over the API.
 
 ## Configuration
 

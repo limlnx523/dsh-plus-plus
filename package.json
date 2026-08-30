@@ -1,7 +1,7 @@
 {
   "name": "dsh-plus-plus",
   "version": "0.2.1",
-  "description": "DSH++ — a Windows-first lifecycle & provider manager for DeepSeek Harness (dsh). Minimal, local-first, zero-runtime-deps.",
+  "description": "DSH++ — a local-first control plane for DeepSeek Harness. Plugin security auditing and workflow regression testing for dsh, in a CLI plus a loopback web console.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -62,7 +62,10 @@
     "plugin",
     "usage",
     "security",
-    "windows"
+    "windows",
+    "regression",
+    "audit",
+    "control-plane"
   ],
   "private": false
 }
