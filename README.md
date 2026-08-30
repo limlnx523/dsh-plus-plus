@@ -6,18 +6,26 @@
 
 It runs on your machine, reads the same `$DSH_HOME` state the harness does, and gives you the operational layer the harness doesn't ship.
 
-**What it solves**
+**Why you need it**
 
 - You can't easily see which plugins are installed, or what each one can reach (filesystem, shell, network, credentials).
 - A config change, a new plugin, a prompt tweak, or a harness upgrade can silently break a workflow — and you only find out later.
 - Credentials, config, and sessions live in `$DSH_HOME` with no snapshot/rollback or usage/cost view.
 
-**Two core capabilities**
+**Core capabilities**
 
-1. **Plugin security audit** — `dshpp audit` inventories installed plugins, classifies the capabilities (seams) each one touches, grades risk, and flags what to remove.
+1. **Plugin security auditing** — `dshpp audit` inventories installed plugins, classifies the capabilities (seams) each one touches, grades risk, and flags what to remove.
 2. **Workflow regression testing** — `dshpp test` runs a fixed set of harness tasks against your current DSH configuration, compares to a stored baseline, and reports regressions. It exits non-zero on a regression, so it can gate CI.
+3. **Lifecycle management** — detect the install, snapshot and roll back `$DSH_HOME` configuration, run diagnostics, and manage providers and credentials.
 
-It also ships operational tooling: install detection, config snapshot/rollback, diagnostics, provider and credential management, and usage/cost analytics — through a CLI and a loopback-only web console.
+**Install & go**
+
+```sh
+npm i -g .
+dshpp status   # overview of the DSH install
+dshpp audit    # plugin security risk report
+dshpp test     # regression-test the DSH workflow vs baseline
+```
 
 ![License](https://img.shields.io/github/license/limlnx523/dsh-plus-plus)
 ![Node](https://img.shields.io/badge/node-%3E%3D20-3c873a)
@@ -45,14 +53,6 @@ Or install it as a harness plugin (adds a `/dshpp` slash command):
 
 ```sh
 dsh plugin --profile web add github:limlnx523/dsh-plus-plus
-```
-
-## Quick start
-
-```sh
-dshpp status     # overview of the DSH install
-dshpp audit      # plugin security risk report
-dshpp test       # regression-test the DSH workflow vs baseline
 ```
 
 ## Example

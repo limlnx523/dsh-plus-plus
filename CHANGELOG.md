@@ -2,7 +2,7 @@
 
 ## 0.2.1
 
-- **Refocused Evaluation as regression testing for DSH workflows**, not an LLM benchmark. The subject is the whole configured DSH system (model, prompt, plugins, config, harness version). A run executes the fixed cases against the current config, records a fingerprint, stores a baseline, and reports per-case regressions.
+- **Refocused Evaluation as regression testing for DSH workflows**. The subject is the whole configured DSH system (model, prompt, plugins, config, harness version). A run executes the fixed cases against the current config, records a fingerprint, stores a baseline, and reports per-case regressions.
 - Merged the previous `eval` (single probe + model loop + settings mutation) and `bench` (multi-task model aggregation) into one `src/regression.mjs`; removed the model-comparison axis and the risky temporary `settings.yaml` rewrite, and ran the suite once against the current config instead of looping models.
 - CLI: `dshpp test [--case <id>]` (aliases `eval`/`bench`/`check`); any failing or regressed case exits non-zero so the command can act as a CI gate.
 - Web console: `/api/eval` now returns regression cases + diff (kept `results`/`model`/`okChange` for back-compat); the console panel is labelled regression testing.
@@ -32,5 +32,5 @@
 - Usage & cost aggregation from DSH session logs (concatenated zstd via `node:zlib`), by model/day/project, cache-hit rate, monthly budget.
 - Session list/export.
 - Plugin inventory + capability (seam) audit + risk grading.
-- Model evaluation probe (deterministic task), with baseline regression diff.
+- Deterministic regression probe with a stored baseline.
 - Installed as a DeepSeek Harness plugin bundle (adds `/dshpp` command).
